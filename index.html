@@ -84,35 +84,41 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-box {
-            background: white;
-            color: black;
-            padding: 25px;
-            width: 95%;
-            max-width: 420px;
-            border-radius: 12px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-box input,
-        .modal-box select {
-            width: 100%;
-            margin-top: 10px;
-            border: 1px solid #ccc;
-        }
+        /* ----- Modal ----- */
+      .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      justify-content: center;
+      align-items: center;
+      }
+      
+      .modal-box {
+      background: white;
+      color: black;
+      padding: 25px;
+      width: 95%;
+      max-width: 420px;
+      border-radius: 12px;
+      max-height: 90vh;
+      overflow-y: auto;
+      }
+      
+      .modal-box input,
+      .modal-box select {
+      width: 100%;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      }
+      
+      .action-btn {
+      background: #ff4d4d;
+      margin-left: 5px;
+      }
 
         .action-btn {
             background: #ff4d4d;
@@ -140,56 +146,68 @@
 
 <body>
 
-    <div class="container">
-
-        <h2>Art Manager Dashboard</h2>
-
-        <div class="top-bar">
-            <button onclick="openModal()">+ Add Art</button>
-            <input type="text" id="searchInput" placeholder="Search anything..." onkeyup="searchData()">
+    <!-- Password Modal -->
+    <div class="modal" id="passwordModal">
+        <div class="modal-box">
+            <h3>Enter password to visit site</h3>
+            <input type="password" id="sitePassword" placeholder="Password">
+            <br><br>
+            <button onclick="checkSitePassword()">Enter</button>
         </div>
-
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Art</th>
-                        <th>Date</th>
-                        <th>Price</th>
-                        <th>Status</th>
-                        <th>Qty</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
-        </div>
-
     </div>
 
-    <!-- Modal -->
-    <div class="modal" id="modal">
-        <div class="modal-box">
+    <!-- Main Content -->
+    <div id="mainContent" style="display:none;">
+        <div class="container">
 
-            <h3 id="formTitle">Add Art</h3>
+            <h2>ART Search Manager Dashboard</h2>
 
-            <input type="password" id="passInput" placeholder="Admin Password">
+            <div class="top-bar">
+                <button onclick="openModal()">+ Add Art</button>
+                <input type="text" id="searchInput" placeholder="Search anything..." onkeyup="searchData()">
+            </div>
 
-            <input type="text" id="artInput" placeholder="Art Name">
-            <input type="date" id="dateInput">
-            <input type="number" id="priceInput" placeholder="Price">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Art</th>
+                            <th>Date</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Qty</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
 
-            <select id="statusSelect">
-                <option value="">Select Status</option>
-                <option value="In">In</option>
-                <option value="Delivered">Delivered</option>
-            </select>
+        </div>
 
-            <input type="number" id="qtyInput" placeholder="Quantity (optional)" style="margin-bottom: 10px;">
+        <!-- Add/Edit Modal -->
+        <div class="modal" id="modal">
+            <div class="modal-box">
 
-            <button onclick="addData()">Save</button>
-            <button onclick="closeModal()" class="action-btn">Cancel</button>
+                <h3 id="formTitle">Add Art</h3>
 
+                <input type="password" id="passInput" placeholder="Admin Password">
+                <input type="text" id="artInput" placeholder="Art Name">
+                <input type="date" id="dateInput">
+                <input type="number" id="priceInput" placeholder="Price">
+
+                <select id="statusSelect">
+                    <option value="" disabled="disabled" >Select Status</option>
+                    <option value="In" selected="selected" >In</option>
+                    <option value="Delivered">Delivered</option>
+                </select>
+
+                <input type="number" id="qtyInput" placeholder="Quantity (optional)" style="margin-bottom: 10px;">
+
+                <button onclick="addData()">Save</button>
+                <button onclick="closeModal()" class="action-btn">Cancel</button>
+
+            </div>
         </div>
     </div>
 
@@ -211,25 +229,40 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // ----- SITE PASSWORD CHECK -----
+        window.onload = function() {
+            document.getElementById("passwordModal").style.display = "flex";
+        };
+
+        async function checkSitePassword() {
+            const input = document.getElementById("sitePassword").value;
+            try {
+                const docSnap = await db.collection("admin").doc("main").get();
+                if (!docSnap.exists) { alert("Admin password not found!"); return; }
+                const realPass = docSnap.data().password;
+                if (input === realPass) {
+                    document.getElementById("passwordModal").style.display = "none";
+                    document.getElementById("mainContent").style.display = "block";
+                } else {
+                    alert("❌ Wrong password!");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Something went wrong while checking password!");
+            }
+        }
+
+        // ----- ART MANAGER LOGIC -----
         let editId = null;
 
         function openModal() { modal.style.display = "flex"; }
         function closeModal() { modal.style.display = "none"; resetForm(); }
-        function resetForm() {
-            artInput.value = "";
-            dateInput.value = "";
-            priceInput.value = "";
-            statusSelect.value = "";
-            qtyInput.value = "";
-            passInput.value = "";
-            formTitle.innerText = "Add Art";
-        }
+        function resetForm() { artInput.value=""; dateInput.value=""; priceInput.value=""; statusSelect.value=""; qtyInput.value=""; passInput.value=""; formTitle.innerText="Add Art"; }
 
         async function addData() {
             const inputPass = passInput.value;
             const adminDoc = await db.collection("admin").doc("main").get();
             const realPass = adminDoc.data().password;
-
             if (inputPass !== realPass) { alert("Wrong password"); return; }
 
             const artVal = artInput.value.trim();
@@ -244,47 +277,37 @@
             if (!statusVal) { alert("Select status"); return; }
 
             const data = { art: artVal, date: dateVal, price: priceVal, status: statusVal, qty: qtyVal || "" };
-
-            if (editId) { await db.collection("artData").doc(editId).update(data); alert("Data updated"); editId = null; }
+            if (editId) { await db.collection("artData").doc(editId).update(data); alert("Data updated"); editId=null; }
             else { await db.collection("artData").add(data); alert("Data added"); }
 
-            closeModal();
-            loadData();
+            closeModal(); loadData();
         }
 
         async function loadData() {
-            tableBody.innerHTML = "";
+            tableBody.innerHTML="";
             const snap = await db.collection("artData").get();
-            snap.forEach(doc => {
-                const d = doc.data();
-                tableBody.innerHTML += `
-                    <tr>
-                        <td>${d.art}</td>
-                        <td>${d.date}</td>
-                        <td>${d.price}</td>
-                        <td>${d.status}</td>
-                        <td>${d.qty}</td>
-                        <td>
-                            <button onclick="editData('${doc.id}','${d.art}','${d.date}','${d.price}','${d.status}','${d.qty}')">Edit</button>
-                            <button class="action-btn" onclick="deleteData('${doc.id}')">Delete</button>
-                        </td>
-                    </tr>`;
+            snap.forEach(doc=>{
+                const d=doc.data();
+                tableBody.innerHTML+=`
+                <tr>
+                    <td>${d.art}</td>
+                    <td>${d.date}</td>
+                    <td>${d.price}</td>
+                    <td>${d.status}</td>
+                    <td>${d.qty}</td>
+                    <td>
+                        <button onclick="editData('${doc.id}','${d.art}','${d.date}','${d.price}','${d.status}','${d.qty}')">Edit</button>
+                        <button class="action-btn" onclick="deleteData('${doc.id}')">Delete</button>
+                    </td>
+                </tr>`;
             });
         }
 
         loadData();
 
-        async function deleteData(id) { if (confirm("Delete this data?")) { await db.collection("artData").doc(id).delete(); loadData(); } }
-
-        function editData(id, a, b, c, d, e) {
-            editId = id; openModal(); formTitle.innerText = "Edit Art";
-            artInput.value = a; dateInput.value = b; priceInput.value = c; statusSelect.value = d; qtyInput.value = e;
-        }
-
-        function searchData() {
-            const val = searchInput.value.toLowerCase();
-            document.querySelectorAll("#tableBody tr").forEach(r => { r.style.display = r.innerText.toLowerCase().includes(val) ? "" : "none"; });
-        }
+        async function deleteData(id) { if(confirm("Delete this data?")){ await db.collection("artData").doc(id).delete(); loadData(); } }
+        function editData(id,a,b,c,d,e){ editId=id; openModal(); formTitle.innerText="Edit Art"; artInput.value=a; dateInput.value=b; priceInput.value=c; statusSelect.value=d; qtyInput.value=e; }
+        function searchData(){ const val=searchInput.value.toLowerCase(); document.querySelectorAll("#tableBody tr").forEach(r=>{ r.style.display = r.innerText.toLowerCase().includes(val) ? "" : "none"; }); }
     </script>
 
 </body>
